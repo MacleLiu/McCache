@@ -26,19 +26,19 @@ func createGroup() *mccache.Group {
 		}))
 }
 
-func startCacheServer(addr string, addrs []string, gee *mccache.Group) {
+func startCacheServer(addr string, addrs []string, mc *mccache.Group) {
 	peers := mccache.NewHTTPPool(addr)
 	peers.Set(addrs...)
-	gee.RegisterPeers(peers)
+	mc.RegisterPeers(peers)
 	log.Println("mccache is running at", addr)
 	log.Fatal(http.ListenAndServe(addr[7:], peers))
 }
 
-func startAPIServer(apiAddr string, gee *mccache.Group) {
+func startAPIServer(apiAddr string, mc *mccache.Group) {
 	http.Handle("/api", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")
-			view, err := gee.Get(key)
+			view, err := mc.Get(key)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -71,9 +71,9 @@ func main() {
 		addrs = append(addrs, v)
 	}
 
-	gee := createGroup()
+	mc := createGroup()
 	if api {
-		go startAPIServer(apiAddr, gee)
+		go startAPIServer(apiAddr, mc)
 	}
-	startCacheServer(addrMap[port], []string(addrs), gee)
+	startCacheServer(addrMap[port], []string(addrs), mc)
 }
