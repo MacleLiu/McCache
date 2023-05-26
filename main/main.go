@@ -1,10 +1,10 @@
 package main
 
 import (
-	mccache "McCache"
 	"flag"
 	"fmt"
 	"log"
+	mccache "mccache"
 	"net/http"
 )
 

@@ -1,7 +1,7 @@
 package mccache
 
 import (
-	"McCache/lru"
+	"mccache/lru"
 	"sync"
 )
 
