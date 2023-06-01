@@ -27,11 +27,11 @@ func createGroup() *mccache.Group {
 }
 
 func startCacheServer(addr string, addrs []string, mc *mccache.Group) {
-	peers := mccache.NewHTTPPool(addr)
-	peers.Set(addrs...)
-	mc.RegisterPeers(peers)
+	server, _ := mccache.NewServer(addr)
+	server.SetPeers(addrs...)
+	mc.RegisterServer(server)
 	log.Println("mccache is running at", addr)
-	log.Fatal(http.ListenAndServe(addr[7:], peers))
+	server.Start()
 }
 
 func startAPIServer(apiAddr string, mc *mccache.Group) {
@@ -61,9 +61,9 @@ func main() {
 
 	apiAddr := "http://localhost:9999"
 	addrMap := map[int]string{
-		8001: "http://localhost:8001",
-		8002: "http://localhost:8002",
-		8003: "http://localhost:8003",
+		8001: "localhost:8001",
+		8002: "localhost:8002",
+		8003: "localhost:8003",
 	}
 
 	var addrs []string

@@ -3,12 +3,11 @@ package mccache
 import (
 	"fmt"
 	"log"
-	pb "mccache/mccachepb"
 	"mccache/singleflight"
 	"sync"
 )
 
-// 为指定的key加载数据
+// 获取指定的key的值
 type Getter interface {
 	Get(key string) ([]byte, error)
 }
@@ -20,6 +19,8 @@ func (f GetterFunc) Get(key string) ([]byte, error) {
 	return f(key)
 }
 
+var _ Getter = (*GetterFunc)(nil)
+
 var (
 	mu     sync.RWMutex
 	groups = make(map[string]*Group)
@@ -30,7 +31,7 @@ type Group struct {
 	name      string
 	getter    Getter
 	mainCache cache
-	peers     PeerPicker
+	server    PeerPicker
 
 	loader *singleflight.Group
 }
@@ -66,21 +67,23 @@ func (g *Group) Get(key string) (ByteView, error) {
 		return ByteView{}, fmt.Errorf("key is empty")
 	}
 	if v, ok := g.mainCache.get(key); ok {
-		log.Println("[McCache] hit")
+		log.Printf("[McCache] key<%s> hit", key)
 		return v, nil
 	}
 	return g.load(key)
 }
 
-// 缓存未命中，加载源数据
+// 缓存未命中，加载数据
 func (g *Group) load(key string) (value ByteView, err error) {
 	viewi, err := g.loader.Do(key, func() (any, error) {
-		if g.peers != nil {
-			if peer, ok := g.peers.PickPeer(key); ok {
-				if value, err := g.getFromPeer(peer, key); err == nil {
+		if g.server != nil {
+			//根据一次性哈希获取该key所在的节点，返回连接该节点的PeerGetter
+			if peerGetter, ok := g.server.PickPeer(key); ok {
+				if value, err := g.getFromPeer(peerGetter, key); err == nil {
 					return value, nil
+				} else {
+					log.Println("[McCache] Failed to get from peer ", err)
 				}
-				log.Println("[McCache] Failed to get from peer", err)
 			}
 		}
 		return g.getLocally(key)
@@ -91,20 +94,15 @@ func (g *Group) load(key string) (value ByteView, err error) {
 	return
 }
 
-func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
-	req := &pb.Request{
-		Group: g.name,
-		Key:   key,
-	}
-	res := &pb.Response{}
-	err := peer.Get(req, res)
+func (g *Group) getFromPeer(peerGetter PeerGetter, key string) (ByteView, error) {
+	value, err := peerGetter.Get(g.name, key)
 	if err != nil {
 		return ByteView{}, err
 	}
-	return ByteView{b: res.Value}, nil
+	return ByteView{b: value}, nil
 }
 
-// getLocally调用用户回调函数获取源数据
+// getLocally调用用户回调函数从本地数据源获取数据
 func (g *Group) getLocally(key string) (ByteView, error) {
 	bytes, err := g.getter.Get(key)
 	if err != nil {
@@ -115,14 +113,15 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 	return value, nil
 }
 
+// populateCache填充缓存
 func (g *Group) populateCache(key string, value ByteView) {
 	g.mainCache.add(key, value)
 }
 
-// RegisterPeers把实现了 PeerPicker 接口的 HTTPPool 注册到 Group 中。
-func (g *Group) RegisterPeers(peers PeerPicker) {
-	if g.peers != nil {
+// RegisterPeers为Group 注册server。
+func (g *Group) RegisterServer(server PeerPicker) {
+	if g.server != nil {
 		panic("RegisterPeers called more than once")
 	}
-	g.peers = peers
+	g.server = server
 }

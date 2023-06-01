@@ -40,7 +40,7 @@ func (m *Map) Add(keys ...string) {
 	sort.Ints(m.keys)
 }
 
-// Get 获取hash表中与所提供键最进的项
+// Get 获取hash表中与所提供键最近的项
 func (m *Map) Get(key string) string {
 	if len(m.keys) == 0 {
 		return ""

@@ -2,7 +2,7 @@ syntax="proto3";
 
 package geecachepb;
 
-option go_package = "./mccachepb";
+option go_package = ".;mccachepb";
 
 message Request {
     string group = 1;
@@ -13,8 +13,6 @@ message Response {
     bytes value = 1;
 }
 
-
-/* service GroupCache {
+service McCache {
     rpc Get(Request) returns (Response);
 }
- */
