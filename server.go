@@ -7,6 +7,7 @@ import (
 	"log"
 	"mccache/consistenthash"
 	pb "mccache/mccachepb"
+	"mccache/register"
 	"net"
 	"sync"
 
@@ -110,9 +111,28 @@ func (s *server) Start() error {
 	}
 	//创建grpc服务
 	grpcServer := grpc.NewServer()
+
 	//在grpc服务端注册需要提供的服务
 	pb.RegisterMcCacheServer(grpcServer, s)
 	s.mu.Unlock()
+
+	//创建一个etcd注册器
+	etcdRegister, err := register.NewEtcdRegister()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	defer etcdRegister.Close()
+
+	serviceName := "mccache"
+
+	//注册服务到etcd
+	err = etcdRegister.Register(serviceName, s.addr, 5)
+	if err != nil {
+		log.Printf("server[%s] register service to etcd failed, error: %v", s.addr, err)
+		return err
+	}
+
 	//启动服务
 	if err := grpcServer.Serve(lis); err != nil {
 		s.Log("failed to serve")

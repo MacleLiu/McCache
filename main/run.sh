@@ -6,10 +6,7 @@ go build -o server
 ./server -port=8002 &
 ./server -port=8003 -api=1 &
 
-sleep 2
-echo ">>> start test"
-curl "http://localhost:9999/api?key=Rex" &
-curl "http://localhost:9999/api?key=Rex" &
-curl "http://localhost:9999/api?key=Rex" &
+sleep 3
+echo ">>> start success"
 
 wait
