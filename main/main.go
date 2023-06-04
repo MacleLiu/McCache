@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	mccache "mccache"
-	"net/http"
 )
 
 var db = map[string]string{
@@ -26,41 +25,23 @@ func createGroup() *mccache.Group {
 		}))
 }
 
-func startCacheServer(addr string, addrs []string, mc *mccache.Group) {
+func startCacheServer(addr string, mc *mccache.Group) {
 	server, _ := mccache.NewServer(addr)
-	server.SetPeers(addrs...)
+	//server.SetPeers(addrs...)
 	mc.RegisterServer(server)
 	log.Println("mccache is running at", addr)
 	server.Start()
 }
 
-func startAPIServer(apiAddr string, mc *mccache.Group) {
-	http.Handle("/api", http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			key := r.URL.Query().Get("key")
-			view, err := mc.Get(key)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(view.ByteSlice())
-
-		}))
-	log.Println("fontend server is running at", apiAddr)
-	log.Fatal(http.ListenAndServe(apiAddr[7:], nil))
-
-}
-
 func main() {
-	var port int
-	var api bool
-	flag.IntVar(&port, "port", 8001, "mccache server port")
-	flag.BoolVar(&api, "api", false, "Start a api server?")
+	var addr string
+	flag.StringVar(&addr, "addr", "", "mccache server address")
 	flag.Parse()
-
-	apiAddr := "http://localhost:9999"
-	addrMap := map[int]string{
+	if addr == "" {
+		fmt.Println("addr is empty")
+		return
+	}
+	/* addrMap := map[int]string{
 		8001: "localhost:8001",
 		8002: "localhost:8002",
 		8003: "localhost:8003",
@@ -69,11 +50,10 @@ func main() {
 	var addrs []string
 	for _, v := range addrMap {
 		addrs = append(addrs, v)
-	}
+	} */
 
 	mc := createGroup()
-	if api {
-		go startAPIServer(apiAddr, mc)
-	}
-	startCacheServer(addrMap[port], []string(addrs), mc)
+
+	startCacheServer(addr, mc)
+
 }

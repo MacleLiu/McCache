@@ -70,37 +70,49 @@ func (g *Group) Get(key string) (ByteView, error) {
 		log.Printf("[McCache] key<%s> hit", key)
 		return v, nil
 	}
-	return g.load(key)
+	//缓存未命中，从本地加载数据
+	return g.getLocally(key)
 }
 
-// 缓存未命中，加载数据
-func (g *Group) load(key string) (value ByteView, err error) {
+/*
+// 代理层服务调用的方法
+func (g *Group) AgencyGet(key string) (value ByteView, err error) {
 	viewi, err := g.loader.Do(key, func() (any, error) {
-		if g.server != nil {
-			//根据一次性哈希获取该key所在的节点，返回连接该节点的PeerGetter
-			if peerGetter, ok := g.server.PickPeer(key); ok {
-				if value, err := g.getFromPeer(peerGetter, key); err == nil {
-					return value, nil
-				} else {
-					log.Println("[McCache] Failed to get from peer ", err)
-				}
-			}
+		//if g.server != nil {
+		//根据一次性哈希获取该key所在的节点，返回连接该节点的PeerGetter
+		//if peerGetter, ok := g.server.PickPeer(key); ok {
+		if value, err := g.getFromPeer(key); err == nil {
+			return value, nil
+		} else {
+			log.Println("[McCache] Failed to get from peer ", err)
+			return nil, err
 		}
-		return g.getLocally(key)
+		//}
+		//}
+		//return g.getLocally(key)
 	})
 	if err == nil {
 		return viewi.(ByteView), err
 	}
 	return
-}
+} */
 
-func (g *Group) getFromPeer(peerGetter PeerGetter, key string) (ByteView, error) {
+/* func (g *Group) getFromPeer(key string) (ByteView, error) {
+	client := NewClient("")
+	value, err := client.Get(g.name, key)
+	if err != nil {
+		return ByteView{}, err
+	}
+	return ByteView{b: value}, nil
+} */
+
+/* func (g *Group) getFromPeer(peerGetter PeerGetter, key string) (ByteView, error) {
 	value, err := peerGetter.Get(g.name, key)
 	if err != nil {
 		return ByteView{}, err
 	}
 	return ByteView{b: value}, nil
-}
+} */
 
 // getLocally调用用户回调函数从本地数据源获取数据
 func (g *Group) getLocally(key string) (ByteView, error) {

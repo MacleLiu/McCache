@@ -41,9 +41,9 @@ func (m *Map) Add(keys ...string) {
 }
 
 // Get 获取hash表中与所提供键最近的项
-func (m *Map) Get(key string) string {
+func (m *Map) Get(key string) (string, bool) {
 	if len(m.keys) == 0 {
-		return ""
+		return "", false
 	}
 
 	hash := int(m.hash([]byte(key)))
@@ -51,5 +51,6 @@ func (m *Map) Get(key string) string {
 		return m.keys[i] >= hash
 	})
 	//m.keys是环状结构，使用取余处理 idx==len(m.keys)的情况
-	return m.hashMap[m.keys[idx%len(m.keys)]]
+	str, ok := m.hashMap[m.keys[idx%len(m.keys)]]
+	return str, ok
 }

@@ -22,11 +22,11 @@ const (
 type server struct {
 	pb.UnimplementedMcCacheServer
 
-	addr    string //服务器地址 format: ip:port
-	mu      sync.Mutex
-	peers   *consistenthash.Map //一致性哈希
-	clients map[string]*client
-	status  bool //服务是否启动
+	addr  string //服务器地址 format: ip:port
+	mu    sync.Mutex
+	peers *consistenthash.Map //一致性哈希
+	//clients map[string]*client
+	status bool //服务是否启动
 }
 
 var _ PeerPicker = (*server)(nil)
@@ -71,7 +71,7 @@ func (s *server) Get(ctx context.Context, req *pb.Request) (*pb.Response, error)
 	return resp, nil
 }
 
-func (s *server) SetPeers(peersAddr ...string) {
+/* func (s *server) SetPeers(peersAddr ...string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	//实例化一致性哈希，并添加传入的节点
@@ -83,16 +83,17 @@ func (s *server) SetPeers(peersAddr ...string) {
 	for _, peer := range peersAddr {
 		s.clients[peer] = NewClient(peer)
 	}
-}
+} */
 
+// 由基于一致性哈希的自定义gRPC负载均衡实现,所以不再进行节点选择
 // 实现PeerPicker接口，PickPeer 通过键选择一个远程节点
 func (s *server) PickPeer(key string) (PeerGetter, bool) {
-	s.mu.Lock()
+	/* s.mu.Lock()
 	defer s.mu.Unlock()
 	if peer := s.peers.Get(key); peer != "" && peer != s.addr {
 		s.Log("Pick remote peer '%s' for key<%s>", peer, key)
 		return s.clients[peer], true
-	}
+	} */
 	return nil, false
 }
 

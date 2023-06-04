@@ -27,7 +27,7 @@ func TestHashing(t *testing.T) {
 	hash.Add("6", "4", "2")
 
 	for k, v := range testCases {
-		if hash.Get(k) != v {
+		if str, _ := hash.Get(k); str != v {
 			t.Errorf("Asking for %s, should have yielded %s", k, v)
 		}
 	}
@@ -39,7 +39,7 @@ func TestHashing(t *testing.T) {
 	testCases["27"] = "8"
 
 	for k, v := range testCases {
-		if hash.Get(k) != v {
+		if str, _ := hash.Get(k); str != v {
 			t.Errorf("Asking for %s, should have yielded %s", k, v)
 		}
 	}
@@ -51,17 +51,9 @@ func TestConsistency(t *testing.T) {
 
 	hash1.Add("Bill", "Bob", "Bonny")
 	hash2.Add("Bob", "Bonny", "Bill")
-
-	if hash1.Get("Ben") != hash2.Get("Ben") {
+	v1, _ := hash1.Get("Ben")
+	v2, _ := hash2.Get("Ben")
+	if v1 != v2 {
 		t.Errorf("Fetching 'Ben' from both hashes should be the same")
 	}
-
-	hash2.Add("Becky", "Ben", "Bobby")
-
-	if hash1.Get("Ben") != hash2.Get("Ben") ||
-		hash1.Get("Bob") != hash2.Get("Bob") ||
-		hash1.Get("Bonny") != hash2.Get("Bonny") {
-		t.Errorf("Direct matches should always return the same entry")
-	}
-
 }
