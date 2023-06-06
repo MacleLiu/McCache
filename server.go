@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"mccache/consistenthash"
 	pb "mccache/mccachepb"
 	"mccache/register"
 	"net"
@@ -17,16 +16,21 @@ import (
 const (
 	defaultAddr     = "127.0.0.1:9122"
 	defaultReplicas = 50
+	serviceName     = "mccache"
 )
 
 type server struct {
 	pb.UnimplementedMcCacheServer
 
-	addr  string //服务器地址 format: ip:port
-	mu    sync.Mutex
-	peers *consistenthash.Map //一致性哈希
-	//clients map[string]*client
+	addr       string //服务器地址 format: ip:port
+	mu         sync.Mutex
+	grpcServer *grpc.Server
+	//etcdRegister *register.EtcdRegister
+	// peers *consistenthash.Map //一致性哈希
+	// clients map[string]*client
 	status bool //服务是否启动
+
+	//stop chan struct{} //服务停止信号，通知注册器当前服务停止，立即从注册中心移除该节点
 }
 
 var _ PeerPicker = (*server)(nil)
@@ -38,10 +42,16 @@ func (s *server) Log(format string, v ...interface{}) {
 
 // NewServer 创建cache的server实例；若addr为空，则使用defaultAddr
 func NewServer(addr string) (*server, error) {
+	//创建grpc服务
+	grpcServer := grpc.NewServer()
 	if addr == "" {
 		addr = defaultAddr
 	}
-	return &server{addr: addr}, nil
+	server := &server{
+		addr:       addr,
+		grpcServer: grpcServer,
+	}
+	return server, nil
 }
 
 func (s *server) Get(ctx context.Context, req *pb.Request) (*pb.Response, error) {
@@ -71,20 +81,6 @@ func (s *server) Get(ctx context.Context, req *pb.Request) (*pb.Response, error)
 	return resp, nil
 }
 
-/* func (s *server) SetPeers(peersAddr ...string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	//实例化一致性哈希，并添加传入的节点
-	s.peers = consistenthash.New(defaultReplicas, nil)
-	s.peers.Add(peersAddr...)
-	s.clients = make(map[string]*client, len(peersAddr))
-
-	//为每个远程节点创建客户端实例
-	for _, peer := range peersAddr {
-		s.clients[peer] = NewClient(peer)
-	}
-} */
-
 // 由基于一致性哈希的自定义gRPC负载均衡实现,所以不再进行节点选择
 // 实现PeerPicker接口，PickPeer 通过键选择一个远程节点
 func (s *server) PickPeer(key string) (PeerGetter, bool) {
@@ -111,10 +107,10 @@ func (s *server) Start() error {
 		return err
 	}
 	//创建grpc服务
-	grpcServer := grpc.NewServer()
+	//grpcServer := grpc.NewServer()
 
 	//在grpc服务端注册需要提供的服务
-	pb.RegisterMcCacheServer(grpcServer, s)
+	pb.RegisterMcCacheServer(s.grpcServer, s)
 	s.mu.Unlock()
 
 	//创建一个etcd注册器
@@ -125,8 +121,6 @@ func (s *server) Start() error {
 	}
 	defer etcdRegister.Close()
 
-	serviceName := "mccache"
-
 	//注册服务到etcd
 	err = etcdRegister.Register(serviceName, s.addr, 5)
 	if err != nil {
@@ -135,9 +129,16 @@ func (s *server) Start() error {
 	}
 
 	//启动服务
-	if err := grpcServer.Serve(lis); err != nil {
+	if err := s.grpcServer.Serve(lis); err != nil {
 		s.Log("failed to serve")
 		return err
 	}
 	return nil
+}
+
+func (s *server) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = false
+	s.grpcServer.GracefulStop()
 }

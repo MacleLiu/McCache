@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"log"
 	mccache "mccache"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 var db = map[string]string{
@@ -25,15 +28,21 @@ func createGroup() *mccache.Group {
 		}))
 }
 
-func startCacheServer(addr string, mc *mccache.Group) {
+/* func startCacheServer(addr string, mc *mccache.Group) {
 	server, _ := mccache.NewServer(addr)
 	//server.SetPeers(addrs...)
 	mc.RegisterServer(server)
 	log.Println("mccache is running at", addr)
+
 	server.Start()
-}
+} */
 
 func main() {
+	//创建监听退出chan
+	c := make(chan os.Signal)
+	//监听指定信号 ctrl+c kill
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	var addr string
 	flag.StringVar(&addr, "addr", "", "mccache server address")
 	flag.Parse()
@@ -54,6 +63,24 @@ func main() {
 
 	mc := createGroup()
 
-	startCacheServer(addr, mc)
+	//startCacheServer(addr, mc)
+
+	server, _ := mccache.NewServer(addr)
+
+	go func() {
+		for s := range c {
+			switch s {
+			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:
+				fmt.Println("Program Exit...", s)
+				server.Stop()
+				return
+			}
+		}
+	}()
+
+	mc.RegisterServer(server)
+	log.Println("mccache is running at", addr)
+
+	server.Start()
 
 }

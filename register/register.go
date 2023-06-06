@@ -30,17 +30,6 @@ func (s *EtcdRegister) CreateLease(expire int64) error {
 	return nil
 }
 
-/* // 绑定租约，将租约与对应的键值对绑定
-func (s *EtcdRegister) BindLease(key string, value string) error {
-	res, err := s.etcdCli.Put(s.ctx, key, value, clientv3.WithLease(s.leaseId))
-	if err != nil {
-		log.Printf("bindLease failed, error: %v\n", err)
-		return err
-	}
-	log.Printf("bindLease success. %v", res)
-	return nil
-} */
-
 // 续租，发送心跳确定服务正常
 func (s *EtcdRegister) KeepAlive() (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	resChan, err := s.etcdCli.KeepAlive(s.ctx, s.leaseId)
@@ -51,7 +40,7 @@ func (s *EtcdRegister) KeepAlive() (<-chan *clientv3.LeaseKeepAliveResponse, err
 	return resChan, nil
 }
 
-func (s *EtcdRegister) Watcher(key string, resChan <-chan *clientv3.LeaseKeepAliveResponse) {
+func (s *EtcdRegister) Watcher(serviceName, addr string, resChan <-chan *clientv3.LeaseKeepAliveResponse) {
 	for {
 		select {
 		case <-resChan:
@@ -64,14 +53,25 @@ func (s *EtcdRegister) Watcher(key string, resChan <-chan *clientv3.LeaseKeepAli
 }
 
 func (s *EtcdRegister) Close() error {
+	log.Printf("Close...\n")
+	//撤销租约
+	s.etcdCli.Revoke(s.ctx, s.leaseId)
+
 	s.cancel()
+
+	return s.etcdCli.Close()
+}
+
+/* func (s *EtcdRegister) close() error {
 	log.Printf("close...\n")
 
 	//撤销租约
 	s.etcdCli.Revoke(s.ctx, s.leaseId)
-
+	log.Printf("租约关闭")
+	s.etcdDelete(serviceName, addr)
+	log.Printf("节点已删除")
 	return s.etcdCli.Close()
-}
+} */
 
 // 实例化一个etcd服务注册器
 func NewEtcdRegister() (*EtcdRegister, error) {
@@ -115,7 +115,7 @@ func (s *EtcdRegister) Register(serviceName, addr string, expire int64) (err err
 	}
 
 	//监视租约
-	go s.Watcher(serviceName, keepAliveChan)
+	go s.Watcher(serviceName, addr, keepAliveChan)
 
 	return nil
 }
@@ -128,3 +128,14 @@ func (s *EtcdRegister) etcdAdd(serviceName, addr string) error {
 	}
 	return em.AddEndpoint(context.TODO(), serviceName+"/"+addr, endpoints.Endpoint{Addr: addr}, clientv3.WithLease(s.leaseId))
 }
+
+/*
+// etcdDelete从服务中删除一个端点
+func (s *EtcdRegister) etcdDel(serviceName, addr string) error {
+	em, err := endpoints.NewManager(s.etcdCli, serviceName)
+	if err != nil {
+		return nil
+	}
+	return em.DeleteEndpoint(context.TODO(), serviceName+"/"+addr)
+}
+*/
