@@ -4,7 +4,8 @@
 # 运行一个示例
 ## 1. 首先需要运行一个etcd服务，作为mccache的注册中心
 ## 2. 在/mccache/main目录下提供了一个示例main.go
-```
+
+```go
 package main
 
 import (
@@ -71,8 +72,8 @@ func main() {
 	server.Start()
 
 }
-
 ```
+
 编译main.go文件\
 `go build main.go`\
 运行服务\
