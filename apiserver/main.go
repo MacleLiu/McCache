@@ -18,5 +18,6 @@ func main() {
 	flag.StringVar(&addr, "addr", defaultApiAddr, fmt.Sprintf("api server's IP address port, default: %s", defaultApiAddr))
 	flag.Parse()
 
-	client.StartClient(pattern, addr)
+	client := client.NewClient(pattern, addr)
+	client.Start()
 }

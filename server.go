@@ -81,7 +81,7 @@ func (s *server) Get(ctx context.Context, req *pb.Request) (*pb.Response, error)
 	return resp, nil
 }
 
-// 由基于一致性哈希的自定义gRPC负载均衡实现,所以不再进行节点选择
+// 由基于一致性哈希的自定义gRPC负载均衡实现,所以服务端不再进行节点选择
 // 实现PeerPicker接口，PickPeer 通过键选择一个远程节点
 func (s *server) PickPeer(key string) (PeerGetter, bool) {
 	/* s.mu.Lock()

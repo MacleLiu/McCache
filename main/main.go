@@ -11,10 +11,10 @@ import (
 )
 
 var db = map[string]string{
-	"zhangshan": "001",
-	"lisi":      "002",
-	"Rex":       "003",
-	"Rola":      "123",
+	"zhangshan": "104",
+	"lisi":      "178",
+	"Rex":       "156",
+	"Rola":      "139",
 }
 
 func createGroup() *mccache.Group {
@@ -28,18 +28,9 @@ func createGroup() *mccache.Group {
 		}))
 }
 
-/* func startCacheServer(addr string, mc *mccache.Group) {
-	server, _ := mccache.NewServer(addr)
-	//server.SetPeers(addrs...)
-	mc.RegisterServer(server)
-	log.Println("mccache is running at", addr)
-
-	server.Start()
-} */
-
 func main() {
 	//创建监听退出chan
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	//监听指定信号 ctrl+c kill
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -50,20 +41,8 @@ func main() {
 		fmt.Println("addr is empty")
 		return
 	}
-	/* addrMap := map[int]string{
-		8001: "localhost:8001",
-		8002: "localhost:8002",
-		8003: "localhost:8003",
-	}
-
-	var addrs []string
-	for _, v := range addrMap {
-		addrs = append(addrs, v)
-	} */
 
 	mc := createGroup()
-
-	//startCacheServer(addr, mc)
 
 	server, _ := mccache.NewServer(addr)
 

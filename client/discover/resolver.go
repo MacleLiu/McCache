@@ -40,11 +40,6 @@ func (e *etcdResolver) watcher() {
 			for _, event := range val.Events {
 				switch event.Type {
 				case 0: //0是有数据增加
-					/* var valueMap = make(map[string]any)
-					err := json.Unmarshal(event.Kv.Value, &valueMap)
-					if err != nil {
-						log.Println("json unmarshal failed")
-					} */
 					e.store(event.Kv.Key, event.Kv.Value)
 					log.Println("put: ", string(event.Kv.Key))
 					e.updateState()

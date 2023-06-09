@@ -3,7 +3,6 @@ package mccache
 import (
 	"fmt"
 	"log"
-	"mccache/singleflight"
 	"sync"
 )
 
@@ -32,8 +31,6 @@ type Group struct {
 	getter    Getter
 	mainCache cache
 	server    PeerPicker
-
-	loader *singleflight.Group
 }
 
 // NewGroup在组中创建一个新实例
@@ -47,7 +44,6 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 		name:      name,
 		getter:    getter,
 		mainCache: cache{cacheBytes: cacheBytes},
-		loader:    &singleflight.Group{},
 	}
 	groups[name] = g
 	return g
@@ -73,46 +69,6 @@ func (g *Group) Get(key string) (ByteView, error) {
 	//缓存未命中，从本地加载数据
 	return g.getLocally(key)
 }
-
-/*
-// 代理层服务调用的方法
-func (g *Group) AgencyGet(key string) (value ByteView, err error) {
-	viewi, err := g.loader.Do(key, func() (any, error) {
-		//if g.server != nil {
-		//根据一次性哈希获取该key所在的节点，返回连接该节点的PeerGetter
-		//if peerGetter, ok := g.server.PickPeer(key); ok {
-		if value, err := g.getFromPeer(key); err == nil {
-			return value, nil
-		} else {
-			log.Println("[McCache] Failed to get from peer ", err)
-			return nil, err
-		}
-		//}
-		//}
-		//return g.getLocally(key)
-	})
-	if err == nil {
-		return viewi.(ByteView), err
-	}
-	return
-} */
-
-/* func (g *Group) getFromPeer(key string) (ByteView, error) {
-	client := NewClient("")
-	value, err := client.Get(g.name, key)
-	if err != nil {
-		return ByteView{}, err
-	}
-	return ByteView{b: value}, nil
-} */
-
-/* func (g *Group) getFromPeer(peerGetter PeerGetter, key string) (ByteView, error) {
-	value, err := peerGetter.Get(g.name, key)
-	if err != nil {
-		return ByteView{}, err
-	}
-	return ByteView{b: value}, nil
-} */
 
 // getLocally调用用户回调函数从本地数据源获取数据
 func (g *Group) getLocally(key string) (ByteView, error) {

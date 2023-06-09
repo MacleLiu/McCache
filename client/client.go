@@ -6,6 +6,7 @@ import (
 	"mccache/client/discover"
 	"mccache/loadbalancer"
 	pb "mccache/mccachepb"
+	"mccache/singleflight"
 	"net/http"
 
 	"google.golang.org/grpc"
@@ -13,15 +14,21 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-/* type client struct {
-	addr string // 目标节点地址 ip:addr
+type client struct {
+	pattern string
+	addr    string
+	loader  *singleflight.Group
 }
 
-func NewClient(addr string) *client {
-	return &client{addr: addr}
-} */
+func NewClient(pattern, addr string) *client {
+	return &client{
+		pattern: pattern,
+		addr:    addr,
+		loader:  &singleflight.Group{},
+	}
+}
 
-func StartClient(pattern, addr string) {
+func (c *client) Start() {
 	//初始化balancer
 	loadbalancer.InitConsistentHashBuilder()
 
@@ -33,7 +40,6 @@ func StartClient(pattern, addr string) {
 	conn, err := grpc.Dial(
 		"etcd:///mccache",
 		grpc.WithDefaultServiceConfig(`{"LoadBalancingPolicy": "consistentHash"}`),
-		//grpc.WithDefaultServiceConfig(fmt.Sprintf(`{"LoadBalancingPolicy": "%s"}`, roundrobin.Name)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
@@ -44,24 +50,31 @@ func StartClient(pattern, addr string) {
 	// 创建gPRC客户端
 	grpcClient := pb.NewMcCacheClient(conn)
 
-	http.Handle(pattern, http.HandlerFunc(
+	http.Handle(c.pattern, http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")
 			group := r.URL.Query().Get("group")
 
-			//执行RPC调用
-			resp, err := grpcClient.Get(context.WithValue(context.Background(), loadbalancer.Key, key), &pb.Request{
-				Group: group,
-				Key:   key,
+			//通过singleflight执行RPC调用
+			resp, err := c.loader.Do(group, key, func() (any, error) {
+				if resp, err := grpcClient.Get(context.WithValue(context.Background(), loadbalancer.Key, key), &pb.Request{
+					Group: group,
+					Key:   key,
+				}); err == nil {
+					return resp, nil
+				} else {
+					log.Printf("grpc call for {group: %s, key: %s} failed. Error %v", group, key, err)
+					return nil, err
+				}
 			})
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(resp.GetValue())
+			w.Write(resp.(*pb.Response).GetValue())
 
 		}))
-	log.Println("fontend server is running at", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Println("fontend server is running at", c.addr)
+	log.Fatal(http.ListenAndServe(c.addr, nil))
 }

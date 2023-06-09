@@ -16,13 +16,13 @@ type Group struct {
 	m  map[string]*call
 }
 
-func (g *Group) Do(key string, fn func() (any, error)) (any, error) {
+func (g *Group) Do(group, key string, fn func() (any, error)) (any, error) {
 	g.mu.Lock()
 	if g.m == nil {
 		g.m = make(map[string]*call)
 	}
 	//如果已经存在对该key的请求，等待请求结束，返回结果
-	if c, ok := g.m[key]; ok {
+	if c, ok := g.m[group+key]; ok {
 		g.mu.Unlock()
 		c.wg.Wait()
 		return c.val, c.err
@@ -31,14 +31,14 @@ func (g *Group) Do(key string, fn func() (any, error)) (any, error) {
 	//新的key的请求
 	c := new(call)
 	c.wg.Add(1)
-	g.m[key] = c //添加到map中，表示该key已经存在对应的请求
+	g.m[group+key] = c //添加到map中，表示该key已经存在对应的请求
 	g.mu.Unlock()
 
 	c.val, c.err = fn() //调用fn，发起请求
 	c.wg.Done()
 
 	g.mu.Lock()
-	delete(g.m, key) //请求结束，更新g.m
+	delete(g.m, group+key) //请求结束，更新g.m
 	g.mu.Unlock()
 
 	return c.val, c.err

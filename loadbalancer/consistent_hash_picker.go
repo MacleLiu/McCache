@@ -31,25 +31,6 @@ func (b *consistentHashPickerBuilder) Build(buildInfo base.PickerBuildInfo) bala
 		return base.NewErrPicker(balancer.ErrNoSubConnAvailable)
 	}
 
-	/* // 构造 consistentHashPicker
-	picker := &consistentHashPicker{
-		subConns:          make(map[string]balancer.SubConn),
-		hash:              consistenthash.New(50, nil), // 构造一致性hash
-		consistentHashKey: b.consistentHashKey,         // 用于计算hash的key
-	}
-
-	for sc, conInfo := range buildInfo.ReadySCs {
-		fmt.Println("+++++++++++++++++++++++")
-		fmt.Println("vvvvvvvvvvvvvvvvvvvvvvvvvvv")
-		fmt.Println(sc)
-		fmt.Println("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
-		fmt.Println(conInfo)
-
-		node := conInfo.Address.Addr
-		picker.hash.Add(node)
-		picker.subConns[node] = sc
-	}
-	return picker */
 	subConns := make(map[string]balancer.SubConn)
 	for sc, conInfo := range buildInfo.ReadySCs {
 		subConns[conInfo.Address.Addr] = sc
@@ -120,15 +101,3 @@ func (p *consistentHashPicker) Pick(info balancer.PickInfo) (balancer.PickResult
 	}
 	return ret, nil
 }
-
-/* func (p *consistentHashPicker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
-	var ret balancer.PickResult
-	//key, ok := info.Ctx.Value(p.consistentHashKey).(string)
-	fmt.Println("我是目标哈希key", p.consistentHashKey)
-	//if ok {
-	targetAddr := p.hash.Get(p.consistentHashKey) // 根据key的hash值挑选出对应的节点
-
-	ret.SubConn = p.subConns[targetAddr]
-	//}
-	return ret, nil
-} */
