@@ -34,17 +34,18 @@ func main() {
 	//监听指定信号 ctrl+c kill
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	var addr string
+	var addr, etcdAddr string
 	flag.StringVar(&addr, "addr", "", "mccache server address")
+	flag.StringVar(&etcdAddr, "etcdAddr", "", "etcd server address")
 	flag.Parse()
-	if addr == "" {
-		fmt.Println("addr is empty")
+	if addr == "" || etcdAddr == "" {
+		fmt.Println("Parameter error")
 		return
 	}
 
 	mc := createGroup()
 
-	server, _ := mccache.NewServer(addr)
+	server, _ := mccache.NewServer(addr, etcdAddr)
 
 	go func() {
 		for s := range c {

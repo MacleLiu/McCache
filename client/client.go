@@ -15,16 +15,18 @@ import (
 )
 
 type client struct {
-	pattern string
-	addr    string
-	loader  *singleflight.Group
+	pattern  string
+	addr     string
+	etcdAddr string
+	loader   *singleflight.Group
 }
 
-func NewClient(pattern, addr string) *client {
+func NewClient(pattern, addr, etcdAddr string) *client {
 	return &client{
-		pattern: pattern,
-		addr:    addr,
-		loader:  &singleflight.Group{},
+		pattern:  pattern,
+		addr:     addr,
+		etcdAddr: etcdAddr,
+		loader:   &singleflight.Group{},
 	}
 }
 
@@ -33,7 +35,7 @@ func (c *client) Start() {
 	loadbalancer.InitConsistentHashBuilder()
 
 	//注册自定义etcd解析器
-	etcdResolverBuilder := discover.NewEtcdResolverBuilder()
+	etcdResolverBuilder := discover.NewEtcdResolverBuilder(c.etcdAddr)
 	resolver.Register(etcdResolverBuilder)
 
 	// 使用自带的DNS解析器和负载均衡实现方式

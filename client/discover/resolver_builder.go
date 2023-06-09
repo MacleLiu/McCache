@@ -15,10 +15,10 @@ type etcdResolverBuilder struct {
 	etcdClient *clientv3.Client
 }
 
-func NewEtcdResolverBuilder() *etcdResolverBuilder {
+func NewEtcdResolverBuilder(etcdAddr string) *etcdResolverBuilder {
 	//创建etcd客户端连接
 	etcdClient, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"127.0.0.1:2379"},
+		Endpoints:   []string{etcdAddr},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {

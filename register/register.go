@@ -74,9 +74,9 @@ func (s *EtcdRegister) Close() error {
 } */
 
 // 实例化一个etcd服务注册器
-func NewEtcdRegister() (*EtcdRegister, error) {
+func NewEtcdRegister(etcdAddr string) (*EtcdRegister, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"127.0.0.1:2379"},
+		Endpoints:   []string{etcdAddr},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {

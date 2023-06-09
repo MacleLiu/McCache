@@ -30,6 +30,7 @@ type server struct {
 	// clients map[string]*client
 	status bool //服务是否启动
 
+	etcdAddr string //etcd注册中心地址
 	//stop chan struct{} //服务停止信号，通知注册器当前服务停止，立即从注册中心移除该节点
 }
 
@@ -41,15 +42,19 @@ func (s *server) Log(format string, v ...interface{}) {
 }
 
 // NewServer 创建cache的server实例；若addr为空，则使用defaultAddr
-func NewServer(addr string) (*server, error) {
+func NewServer(addr, etcdAddr string) (*server, error) {
 	//创建grpc服务
 	grpcServer := grpc.NewServer()
 	if addr == "" {
 		addr = defaultAddr
 	}
+	if etcdAddr == "" {
+		return nil, fmt.Errorf("etcdAddr is empty")
+	}
 	server := &server{
 		addr:       addr,
 		grpcServer: grpcServer,
+		etcdAddr:   etcdAddr,
 	}
 	return server, nil
 }
@@ -114,7 +119,7 @@ func (s *server) Start() error {
 	s.mu.Unlock()
 
 	//创建一个etcd注册器
-	etcdRegister, err := register.NewEtcdRegister()
+	etcdRegister, err := register.NewEtcdRegister(s.etcdAddr)
 	if err != nil {
 		log.Println(err)
 		return err
